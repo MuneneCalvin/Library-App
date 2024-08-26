@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import * as mongoose from 'mongoose';
+import { Query } from 'express-serve-static-core';
 import { Book } from './schemas/book.schemas';
 
 @Injectable()
@@ -14,8 +15,20 @@ export class BookService {
         return newBook;
     }
 
-    async getBooks(): Promise<Book[]> {
-        const books = await this.bookModel.find({ is_deleted: false }).exec();
+    async getBooks(query: Query): Promise<Book[]> {
+        const resultPerPage = 5;
+        const page = Number(query.page) || 1;
+        const skip = (page - 1) * resultPerPage;
+
+        const baseQuery = { is_deleted: false };
+        if(query.search) {
+            baseQuery['$or'] = [
+                { title: { $regex: query.search, $options: 'i' } },
+                { author: { $regex: query.search, $options: 'i' } },
+            ];
+        }
+
+        const books = await this.bookModel.find(baseQuery).limit(resultPerPage).skip(skip).exec();
         return books;
     }
 
